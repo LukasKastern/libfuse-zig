@@ -68,7 +68,7 @@ const PatchStep = struct {
 
         var man = b.graph.cache.obtain();
         defer man.deinit();
-        man.hash.add(@as(u32, 0xdef08d29));
+        man.hash.add(@as(u32, 0xdef08d30));
         man.hash.addBytes(content);
 
         if (try step.cacheHit(&man)) {
