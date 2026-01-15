@@ -61,7 +61,7 @@ const PatchStep = struct {
 
         const file_path = self.fuse_file.getPath3(b, step);
 
-        const in_file = file_path.openFile("", .{ .mode = .read_write }) catch |e| {
+        const in_file = file_path.root_dir.handle.openFile(file_path.sub_path, .{ .mode = .read_write }) catch |e| {
             std.debug.print("Faield to open file {}", .{e});
             return e;
         };
