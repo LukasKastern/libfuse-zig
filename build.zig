@@ -75,17 +75,17 @@ const PatchStep = struct {
             // Cant cache this outside cause of side effects yippie
             const digest = man.final();
             self.output_file.path = try b.cache_root.join(b.allocator, &.{
-                "o", &digest,
+                "o", &digest, "patched",
             });
             return;
         }
 
         const digest = man.final();
         self.output_file.path = try b.cache_root.join(b.allocator, &.{
-            "o", &digest,
+            "o", &digest, "patched",
         });
 
-        const sub_path = b.pathJoin(&.{ "o", &digest });
+        const sub_path = b.pathJoin(&.{ "o", &digest, "patched" });
         const sub_path_dirname = std.fs.path.dirname(sub_path).?;
         b.cache_root.handle.makePath(sub_path_dirname) catch |err| {
             return step.fail("unable to make path '{}{s}': {s}", .{
