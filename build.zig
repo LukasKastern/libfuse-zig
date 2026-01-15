@@ -61,10 +61,16 @@ const PatchStep = struct {
 
         const file_path = self.fuse_file.getPath3(b, step);
 
-        const in_file = try file_path.openFile("", .{ .mode = .read_write });
+        const in_file = file_path.openFile("", .{ .mode = .read_write }) catch |e| {
+            std.debug.print("Faield to open file {}", .{e});
+            return e;
+        };
         defer in_file.close();
 
-        const content = try in_file.readToEndAlloc(b.allocator, 1024 * 1024 * 1024);
+        const content = in_file.readToEndAlloc(b.allocator, 1024 * 1024 * 1024) catch |e| {
+            std.debug.print("Faield to read file {}", .{e});
+            return e;
+        };
 
         var man = b.graph.cache.obtain();
         defer man.deinit();
@@ -81,9 +87,12 @@ const PatchStep = struct {
         }
 
         const digest = man.final();
-        self.output_file.path = try b.cache_root.join(b.allocator, &.{
+        self.output_file.path = b.cache_root.join(b.allocator, &.{
             "o", &digest, "patched",
-        });
+        }) catch |e| {
+            std.debug.print("Faield to join file {}", .{e});
+            return e;
+        };
 
         const sub_path = b.pathJoin(&.{ "o", &digest, "patched" });
         const sub_path_dirname = std.fs.path.dirname(sub_path).?;
@@ -127,7 +136,10 @@ const PatchStep = struct {
             };
         }
 
-        try man.writeManifest();
+        man.writeManifest() catch |e| {
+            std.debug.print("Faield to write manifest {}", .{e});
+            return e;
+        };
     }
 
     pub fn getOutput(step: *PatchStep) std.Build.LazyPath {
