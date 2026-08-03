@@ -12,7 +12,6 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
         .root_source_file = libfuse.path("include/fuse_lowlevel.h"),
         .target = target,
-        .use_clang = true,
     });
     translate_c.defineCMacro("FUSE_USE_VERSION", "312");
     translate_c.defineCMacro("_FILE_OFFSET_BITS", "64");
@@ -26,7 +25,7 @@ pub fn build(b: *std.Build) !void {
         .FUSE_MINOR_VERSION = 18,
         .FUSE_HOTFIX_VERSION = 0,
     });
-    translate_c.addIncludePath(libfuse_config.getOutput().dirname());
+    translate_c.addIncludePath(libfuse_config.getOutputFile().dirname());
     translate_c.addIncludePath(libfuse.path("include"));
 
     const patch_step = try b.allocator.create(PatchStep);
@@ -61,14 +60,8 @@ const PatchStep = struct {
 
         const file_path = self.fuse_file.getPath3(b, step);
 
-        const in_file = file_path.root_dir.handle.openFile(file_path.sub_path, .{ .mode = .read_write }) catch |e| {
-            std.debug.print("Faield to open file {}", .{e});
-            return e;
-        };
-        defer in_file.close();
-
-        const content = in_file.readToEndAlloc(b.allocator, 1024 * 1024 * 1024) catch |e| {
-            std.debug.print("Faield to read file {}", .{e});
+        const content = file_path.root_dir.handle.readFileAlloc(b.graph.io, file_path.sub_path, b.allocator, .unlimited) catch |e| {
+            std.debug.print("Failed to read file {}", .{e});
             return e;
         };
 
@@ -96,7 +89,7 @@ const PatchStep = struct {
 
         const sub_path = b.pathJoin(&.{ "o", &digest, "patched" });
         const sub_path_dirname = std.fs.path.dirname(sub_path).?;
-        b.cache_root.handle.makePath(sub_path_dirname) catch |err| {
+        b.cache_root.handle.createDirPath(b.graph.io, sub_path_dirname) catch |err| {
             return step.fail("unable to make path '{}{s}': {s}", .{
                 b.cache_root, sub_path_dirname, @errorName(err),
             });
@@ -110,7 +103,7 @@ const PatchStep = struct {
             \\
         ;
 
-        var fixed = std.ArrayListUnmanaged(u8){};
+        var fixed: std.ArrayList(u8) = .empty;
         defer fixed.deinit(b.allocator);
         try fixed.ensureUnusedCapacity(b.allocator, content.len);
 
@@ -122,14 +115,14 @@ const PatchStep = struct {
             if (iter.next()) |after| try fixed.appendSlice(b.allocator, after);
 
             // Write the fixed file
-            b.cache_root.handle.writeFile(.{ .sub_path = sub_path, .data = fixed.items }) catch |err| {
+            b.cache_root.handle.writeFile(b.graph.io, .{ .sub_path = sub_path, .data = fixed.items }) catch |err| {
                 return step.fail("unable to write file '{}{s}': {s}", .{
                     b.cache_root, sub_path, @errorName(err),
                 });
             };
         } else {
             // Write the fixed file
-            b.cache_root.handle.writeFile(.{ .sub_path = sub_path, .data = content }) catch |err| {
+            b.cache_root.handle.writeFile(b.graph.io, .{ .sub_path = sub_path, .data = content }) catch |err| {
                 return step.fail("unable to write file '{}{s}': {s}", .{
                     b.cache_root, sub_path, @errorName(err),
                 });

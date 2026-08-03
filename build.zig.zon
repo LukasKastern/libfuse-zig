@@ -2,7 +2,7 @@
     .name = .libfuse_zig,
     .version = "0.0.0",
     .fingerprint = 0xb77f340e428d7b24,
-    .minimum_zig_version = "0.14.1",
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .fuse = .{
             .url = "git+https://github.com/libfuse/libfuse.git#c2168333c63131b3dcb3fc244fd8f3f6d3fdbde9",
