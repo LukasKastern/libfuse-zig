@@ -7,12 +7,21 @@ pub fn build(b: *std.Build) !void {
 
     const libfuse = b.dependency("fuse", .{});
 
-    const translate_c = b.addTranslateC(.{
-        .link_libc = true,
-        .optimize = optimize,
-        .root_source_file = libfuse.path("include/fuse_lowlevel.h"),
+    // An abstraction to make using translate-c as simple as possible.
+    const Translator = @import("translate_c").Translator;
+
+    const translator = b.dependency("translate_c", .{
         .target = target,
+        .optimize = optimize,
     });
+
+    // Add translator
+    const translate_c: Translator = .init(translator, .{
+        .c_source_file = libfuse.path("include/fuse_lowlevel.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     translate_c.defineCMacro("FUSE_USE_VERSION", "312");
     translate_c.defineCMacro("_FILE_OFFSET_BITS", "64");
 
@@ -35,8 +44,9 @@ pub fn build(b: *std.Build) !void {
         .makeFn = PatchStep.make,
         .id = .custom,
     });
-    patch_step.step.dependOn(&translate_c.step);
-    patch_step.fuse_file = translate_c.getOutput();
+
+    patch_step.step.dependOn(&translate_c.run.step);
+    patch_step.fuse_file = translate_c.output_file;
     patch_step.output_file = .{ .step = &patch_step.step };
 
     const fuse_module = b.addModule("fuse", .{
