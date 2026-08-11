@@ -37,23 +37,24 @@ pub fn build(b: *std.Build) !void {
     translate_c.addIncludePath(libfuse_config.getOutputFile().dirname());
     translate_c.addIncludePath(libfuse.path("include"));
 
-    const patch_step = try b.allocator.create(PatchStep);
-    patch_step.step = .init(.{
-        .name = "Patch-Timespec",
-        .owner = b,
-        .makeFn = PatchStep.make,
-        .id = .custom,
+    const fuse_patcher = b.addExecutable(.{
+        .name = "fuse_patcher",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .root_source_file = b.path("src/main.zig"),
+        }),
     });
 
-    patch_step.step.dependOn(&translate_c.run.step);
-    patch_step.fuse_file = translate_c.output_file;
-    patch_step.output_file = .{ .step = &patch_step.step };
+    const run_patcher = b.addRunArtifact(fuse_patcher);
+    run_patcher.addFileArg(translate_c.output_file);
+    const patched_fuse = run_patcher.addOutputFileArg("fuse_patched");
 
-    const fuse_module = b.addModule("fuse", .{
-        .root_source_file = b.path("src/fuse.zig"),
-    });
-    fuse_module.addAnonymousImport("fuse_lowlevel", .{
-        .root_source_file = patch_step.getOutput(),
+    // Add fuse module
+    _ = b.addModule("fuse", .{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = patched_fuse,
     });
 }
 
