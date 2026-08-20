@@ -48,7 +48,7 @@ pub fn build(b: *std.Build) !void {
 
     const run_patcher = b.addRunArtifact(fuse_patcher);
     run_patcher.addFileArg(translate_c.output_file);
-    const patched_fuse = run_patcher.addOutputFileArg("fuse_patched");
+    const patched_fuse = run_patcher.addOutputFileArg("fuse_patched.zig");
 
     // Add fuse module
     _ = b.addModule("fuse", .{
